@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pin Maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#faf7f4;--card:#fff;--ink:#2b2420;--mute:#7a6e66;--line:#e6ddd5;--accent:#c8553d;--accent-ink:#fff;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1b1715;--card:#26201d;--ink:#f3ece6;--mute:#a89b92;--line:#3b322d;--accent:#e0705a;--accent-ink:#1b1715;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#1b1715;--card:#26201d;--ink:#f3ece6;--mute:#a89b92;--line:#3b322d;--accent:#e0705a;--accent-ink:#1b1715;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Poppins',system-ui,sans-serif;font-size:15px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:10}
+.wrap{max-width:980px;margin:0 auto;padding:16px;display:grid;gap:16px}
+@media(min-width:800px){.wrap{grid-template-columns:360px 1fr;align-items:start}.pv{position:sticky;top:16px}}
+h1{font-size:20px;margin:0 0 4px;grid-column:1/-1}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;display:grid;gap:14px}
+label{display:grid;gap:6px;font-size:12px;font-weight:600;color:var(--mute);text-transform:uppercase;letter-spacing:.04em}
+input[type=text],textarea,select{font:inherit;font-size:15px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;width:100%;text-transform:none;letter-spacing:0;font-weight:400}
+textarea{resize:vertical;min-height:70px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input[type=color]{width:100%;height:42px;border:1px solid var(--line);border-radius:10px;background:var(--bg);padding:2px}
+.row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.layouts{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.layouts button{font:inherit;font-size:13px;font-weight:600;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.layouts button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.pv{display:grid;gap:12px;justify-items:center}
+canvas,.pv img{width:100%;max-width:340px;aspect-ratio:1/2;border-radius:12px;border:1px solid var(--line);display:block;background:#ddd}
+.dl{font:inherit;font-weight:700;font-size:16px;width:100%;max-width:340px;padding:14px;border:0;border-radius:12px;background:var(--accent);color:var(--accent-ink);cursor:pointer}
+.note{font-size:12px;color:var(--mute);text-align:center;margin:0}
+.chk{display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-weight:600;font-size:14px;color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Pin Maker <span style="font-weight:400;color:var(--mute);font-size:13px">1000 × 2000 · Poppins</span></h1>
+
+<div class="panel">
+  <label>Layout
+    <div class="layouts" id="layouts"></div>
+  </label>
+  <label>Photo 1 <input type="file" id="f1" accept="image/*"></label>
+  <label>Photo 2 (stacked layout only) <input type="file" id="f2" accept="image/*"></label>
+  <label>Title <textarea id="title">10 Cozy Fall Dinner Ideas</textarea></label>
+  <label>Subtitle <input type="text" id="sub" value="easy weeknight recipes"></label>
+  <label>Footer / website <input type="text" id="foot" value="yourblog.com"></label>
+  <label>Title size <input type="range" id="size" min="50" max="160" value="104"></label>
+  <label>Photo darkening <input type="range" id="dark" min="0" max="80" value="20"></label>
+  <label class="chk"><input type="checkbox" id="caps"> UPPERCASE title</label>
+  <label>Weight
+    <select id="wt"><option value="600">Semibold</option><option value="700" selected>Bold</option><option value="800">Extra bold</option></select>
+  </label>
+  <div class="row">
+    <label>Block <input type="color" id="c1" value="#f6e7d8"></label>
+    <label>Text <input type="color" id="c2" value="#3b2a20"></label>
+    <label>Accent <input type="color" id="c3" value="#c8553d"></label>
+  </div>
+</div>
+
+<div class="pv">
+  <canvas id="cv" width="1000" height="2000"></canvas>
+  <button class="dl" id="dl">Download PNG</button>
+  <p class="note" id="note"></p>
+</div>
+</div>
+
+<script>
+(function(){
+var W=1000,H=2000,cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+var $=function(i){return document.getElementById(i)};
+var imgs=[null,null],layout='banner';
+var LAYOUTS=[['banner','Center banner'],['split','Color top'],['stack','Two photos'],['bottom','Bottom title']];
+var box=$('layouts');
+LAYOUTS.forEach(function(l){var b=document.createElement('button');b.textContent=l[1];b.dataset.k=l[0];if(l[0]===layout)b.className='on';
+  b.onclick=function(){layout=l[0];[].forEach.call(box.children,function(x){x.className=x.dataset.k===layout?'on':''});draw()};box.appendChild(b)});
+
+function load(inp,i){inp.onchange=function(){var f=inp.files[0];if(!f)return;var r=new FileReader();
+  r.onload=function(){var im=new Image();im.onload=function(){imgs[i]=im;draw()};im.src=r.result};r.readAsDataURL(f)}}
+load($('f1'),0);load($('f2'),1);
+
+function cover(im,x,y,w,h){
+  if(!im){ctx.fillStyle='#cfc6be';ctx.fillRect(x,y,w,h);ctx.fillStyle='#8a7f77';ctx.font='600 44px Poppins, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('Add a photo',x+w/2,y+h/2);return}
+  var s=Math.max(w/im.width,h/im.height),dw=im.width*s,dh=im.height*s;
+  ctx.save();ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();ctx.drawImage(im,x+(w-dw)/2,y+(h-dh)/2,dw,dh);ctx.restore()}
+function shade(a,x,y,w,h){ctx.fillStyle='rgba(0,0,0,'+a+')';ctx.fillRect(x,y,w,h)}
+function font(sz,wt){return (wt||$('wt').value)+' '+sz+'px Poppins, sans-serif'}
+function wrap(t,maxW){var out=[];t.split('\n').forEach(function(p){var words=p.split(/\s+/).filter(Boolean),line='';
+  words.forEach(function(w){var test=line?line+' '+w:w;if(ctx.measureText(test).width>maxW&&line){out.push(line);line=w}else line=test});
+  if(line)out.push(line)});return out}
+function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
+function titleLines(maxW){var sz=+$('size').value,t=$('title').value;if($('caps').checked)t=t.toUpperCase();
+  ctx.font=font(sz);return {lines:wrap(t,maxW),sz:sz,lh:sz*1.18}}
+function drawLines(L,x,y,align,color){ctx.fillStyle=color;ctx.textAlign=align;ctx.textBaseline='top';ctx.font=font(L.sz);
+  L.lines.forEach(function(s,i){ctx.fillText(s,x,y+i*L.lh)})}
+function footer(y){var t=$('foot').value;if(!t)return;ctx.save();ctx.font=font(40,'600');ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.shadowColor='rgba(0,0,0,.55)';ctx.shadowBlur=14;ctx.fillStyle='#fff';ctx.fillText(t,W/2,y);ctx.restore()}
+function sub(x,y,align,color,sz){var t=$('sub').value;if(!t)return 0;ctx.font=font(sz||46,'600');ctx.textAlign=align;ctx.textBaseline='top';ctx.fillStyle=color;ctx.fillText(t,x,y);return (sz||46)*1.5}
+
+function draw(){
+  var c1=$('c1').value,c2=$('c2').value,c3=$('c3').value,d=$('dark').value/100,L,h,y;
+  ctx.clearRect(0,0,W,H);ctx.fillStyle=c1;ctx.fillRect(0,0,W,H);
+  if(layout==='banner'){
+    cover(imgs[0],0,0,W,H);shade(d,0,0,W,H);
+    L=titleLines(760);var sh=$('sub').value?80:0;h=L.lines.length*L.lh+sh+150;y=(H-h)/2;
+    ctx.save();ctx.shadowColor='rgba(0,0,0,.25)';ctx.shadowBlur=40;ctx.shadowOffsetY=10;rr(60,y,880,h,36);ctx.fillStyle=c1;ctx.fill();ctx.restore();
+    drawLines(L,W/2,y+75,'center',c2);sub(W/2,y+75+L.lines.length*L.lh+14,'center',c3,44);footer(H-110);
+  }else if(layout==='split'){
+    var th=H*0.42;cover(imgs[0],0,th,W,H-th);shade(d,0,th,W,H-th);
+    ctx.fillStyle=c1;ctx.fillRect(0,0,W,th);
+    L=titleLines(840);var sh2=$('sub').value?80:0;h=L.lines.length*L.lh+sh2;y=Math.max(60,(th-h)/2);
+    drawLines(L,W/2,y,'center',c2);sub(W/2,y+L.lines.length*L.lh+10,'center',c3,46);
+    ctx.fillStyle=c3;ctx.fillRect(W/2-60,th-8,120,16);footer(H-100);
+  }else if(layout==='stack'){
+    cover(imgs[0],0,0,W,H/2);cover(imgs[1]||imgs[0],0,H/2,W,H/2);shade(d,0,0,W,H);
+    L=titleLines(780);var sh3=$('sub').value?80:0;h=L.lines.length*L.lh+sh3+110;y=(H-h)/2;
+    ctx.save();ctx.shadowColor='rgba(0,0,0,.25)';ctx.shadowBlur=30;rr(40,y,920,h,0);ctx.fillStyle=c1;ctx.fill();ctx.restore();
+    drawLines(L,W/2,y+55,'center',c2);sub(W/2,y+55+L.lines.length*L.lh+10,'center',c3,44);footer(H-90);
+  }else{
+    cover(imgs[0],0,0,W,H);shade(d*0.6,0,0,W,H);
+    var g=ctx.createLinearGradient(0,H*0.4,0,H);g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(0,0,0,'+(0.55+d*0.5)+')');ctx.fillStyle=g;ctx.fillRect(0,H*0.4,W,H*0.6);
+    L=titleLines(840);h=L.lines.length*L.lh;y=H-260-h;
+    ctx.fillStyle=c3;ctx.fillRect(80,y-60,120,14);
+    drawLines(L,80,y,'left','#fff');sub(80,y+h+10,'left',c1,46);
+    var t=$('foot').value;if(t){ctx.font=font(36,'600');ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillStyle='rgba(255,255,255,.85)';ctx.fillText(t,80,H-90)}
+  }
+}
+['title','sub','foot','size','dark','caps','wt','c1','c2','c3'].forEach(function(i){$(i).addEventListener('input',draw);$(i).addEventListener('change',draw)});
+
+function fontsReady(){return Promise.all(['600','700','800'].map(function(w){return document.fonts.load(w+' 60px Poppins')}))}
+draw();fontsReady().then(draw).catch(function(){});
+
+$('dl').onclick=function(){
+  var name=($('title').value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'pin').slice(0,50)+'.png';
+  cv.toBlob(function(blob){
+    window.claude&&claude.use?claude.use('downloads').then(function(dl){
+      if(!dl)return fallback(blob);
+      dl.save({filename:name,data:blob}).then(function(){$('note').textContent='Saved ✓'}).catch(function(e){
+        if(e&&e.code==='declined')return;fallback(blob)});
+    }).catch(function(){fallback(blob)}):fallback(blob)
+  },'image/png')};
+function fallback(blob){var im=document.createElement('img');im.src=URL.createObjectURL(blob);cv.replaceWith(im);cv=im;
+  $('note').textContent='Press and hold the image to save it, then reload to keep editing.'}
+})();
+</script>
+</body>
+</html>
